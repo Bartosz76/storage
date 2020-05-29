@@ -2,6 +2,7 @@ package bm.app.service;
 
 import bm.app.exceptions.ConfigPropertyException;
 import bm.app.model.LocalFile;
+import jdk.vm.ci.meta.Local;
 import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +22,8 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -45,7 +49,7 @@ public class LocalFileService {
             throw new ConfigPropertyException("Cannot get the path to files");
         }
 
-        Path path = Paths.get(uploads);
+        Path path = Paths.get(this.uploads);
         if (Files.notExists(path)) {
             try {
                 logger.info("Try to create a directory: {}", path);
@@ -59,7 +63,7 @@ public class LocalFileService {
 
     public ResponseEntity<?> getFile(String fileName){
         Resource resource;
-        Path path = Paths.get(uploads);
+        Path path = Paths.get(this.uploads);
         try {
             resource = new UrlResource(path.toUri());
         }catch (MalformedURLException e){
@@ -102,9 +106,46 @@ public class LocalFileService {
     public List<LocalFile> getFiles() {
         Stream<Path> files;
         try{
-            Files.walk(Paths.get(uploads))
-                    .filter()
+            logger.info("Try to get all files");
+            files = Files.walk(Paths.get(this.uploads)).filter(Files::isRegularFile
+        }catch (IOException e){
+            logger.error("Cannot get files: {}", e.getMessage());
+            return null;
         }
+        List<LocalFile> localFiles = new ArrayList();
+        files.forEach(
+                f -> {
+                    BasicFileAttributes bs;
+                    try {
+                        bs = Files.readAttributes(f, BasicFileAttributes.class);
+                    }catch (IOException e){
+                        logger.error("Cannot get the file: {}", e.getMessage());
+                    }
+                    String downloadUri = ServletUriComponentsBuilder
+                            .fromCurrentContextPath()
+                            .path("/api/v1/files/download/")
+                            .path(f.getFileName().toString())
+                            .toUriString();
+
+                    LocalFile localFile = new LocalFile();
+                    localFile.setName(f.getFileName().toString());
+                    localFile.setCreationTime(bs.creationTime().toString());
+                    localFile.setLastModified(bs.lastModifiedTime().toString());
+                    localFile.setSize(bs.size());
+                    localFile.setDownloadURI(downloadUri);
+
+                    try {
+                        localFile.setFileType(Files.probeContentType(f.toAbsolutePath()));
+                    }catch (IOException e){
+                        logger.error("Error while getting probeContentType: {}", e.getMessage());
+                    }
+
+                    localFiles.add(localFile);
+
+                }
+
+        );
+        return localFiles;
 
     }
 }
