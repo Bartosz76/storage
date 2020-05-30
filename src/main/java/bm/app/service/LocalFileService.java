@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.File;
@@ -20,6 +21,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,6 +101,7 @@ public class LocalFileService {
                 .ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachement;filename=\"" + targetFile.getName() + "\"")
+                .header("Cookie", "biscuitApp=xxxvvv123;idVisit=abcd")
                 .contentLength(targetFile.length())
                 .body(resource);
     }
@@ -169,5 +172,17 @@ public class LocalFileService {
         }
         logger.error("File not found: {}" + file.getName());
         return new ResponseEntity<>("File not found." + file.getName(), HttpStatus.NOT_FOUND);
+    }
+
+    public ResponseEntity<String> uploadFile(MultipartFile file){
+        Path path = Paths.get(uploads + file.getOriginalFilename());
+            try {
+                logger.info("Try to upload the file: {}", file.getOriginalFilename());
+                Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+            }catch (IOException e){
+                logger.error("Cannot get the file: {} from input: {}", file.getOriginalFilename(), e.getMessage());
+                return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            return new ResponseEntity<>(file.getOriginalFilename(), HttpStatus.CREATED);
     }
 }

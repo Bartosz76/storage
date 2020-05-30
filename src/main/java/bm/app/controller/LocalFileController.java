@@ -3,10 +3,8 @@ package bm.app.controller;
 import bm.app.model.LocalFile;
 import bm.app.service.LocalFileService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,8 +28,13 @@ public class LocalFileController {
         return localFileService.getFile(filename);
     }
 
-    @GetMapping("/files/delete//{filename}")
+    @DeleteMapping("/files/delete//{filename}")
     public ResponseEntity<?> deleteFile(@PathVariable String filename){
         return localFileService.deleteFile(filename);
+    }
+
+    @PostMapping("/files")
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file){
+        return localFileService.uploadFile(file);
     }
 }
